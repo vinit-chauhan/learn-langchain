@@ -1,0 +1,17 @@
+{
+    "name": null,
+    "input_variables": [
+        "length",
+        "programming_language",
+        "topic"
+    ],
+    "optional_variables": [],
+    "output_parser": null,
+    "partial_variables": {},
+    "metadata": null,
+    "tags": null,
+    "template": "You are an expert Software Engineer in {programming_language}\n    programming language. Your goal is to explain the following topic to the\n    user in most technical way. You should give a technical deep dive for the\n    topic and its use case.\n\n    Topic: {topic} in {programming_language}\n    Length: {length}\n    Explanation:",
+    "template_format": "f-string",
+    "validate_template": false,
+    "_type": "prompt"
+}
