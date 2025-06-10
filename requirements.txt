@@ -8,4 +8,5 @@ langchain-core
 langchain-openai
 langchain-ollama
 
-
+# visualize chains
+grandalf
