@@ -1,12 +1,10 @@
-from dotenv import load_dotenv
+from constants import model_name
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import load_prompt
 
+model = ChatOpenAI(model=model_name)
 
-load_dotenv()
-
-model = ChatOpenAI(model='gpt-4o-mini')
 
 template = load_prompt('prompts/template.json')
 
