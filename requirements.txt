@@ -11,3 +11,9 @@ langchain-ollama
 
 # visualize chains
 grandalf
+
+# for web loader
+bs4
+
+# for pdf loader
+pypdf
