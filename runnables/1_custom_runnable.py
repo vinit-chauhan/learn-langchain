@@ -1,5 +1,6 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Self
 from logging import warning
 
 
@@ -8,8 +9,21 @@ class FakeRunnable(ABC):
     def invoke(self, data: Any) -> Any:
         pass
 
+    def __or__(self: Self, other: FakeRunnable) -> RunnableSequence:
+        if isinstance(self, RunnableSequence):
+            left = self.runnable_list
+        else:
+            left = [self]
 
-class RunnableConnector(FakeRunnable):
+        if isinstance(other, RunnableSequence):
+            right = other.runnable_list
+        else:
+            right = [other]
+
+        return RunnableSequence(left + right)
+
+
+class RunnableSequence(FakeRunnable):
     def __init__(self, runnable_list: list[FakeRunnable]) -> None:
         super().__init__()
         self.runnable_list = runnable_list
@@ -67,12 +81,16 @@ llm = FakeLLM()
 
 parser = FakeStrOutputParser()
 
-chain = RunnableConnector([template, llm, parser])
+chain = RunnableSequence([template, llm, parser])
+
 
 res = chain.invoke({'topic': 'golang'})
-
-
 print(res)
+
+chain = template | llm | parser
+res = chain.invoke({'topic': 'golang'})
+print('chain:', res)
+
 
 # old way would give you warn log
 prompt = template.format({'topic': 'golang'})
