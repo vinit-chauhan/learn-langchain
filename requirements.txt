@@ -18,5 +18,8 @@ bs4
 # for pdf loader
 pypdf
 
-wikipedia
 chromadb
+
+# tools for web search
+wikipedia
+duckduckgo-search
