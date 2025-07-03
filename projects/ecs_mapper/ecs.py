@@ -77,7 +77,11 @@ prompt = PromptTemplate(
     Answer:""")
 
 vec_store = Chroma('ecs_collection', OpenAIEmbeddings(
-    model=EMBEDDING_MODEL, dimensions=EMBEDDING_DIMEN), './chroma_db_new')
+    model=EMBEDDING_MODEL,
+    dimensions=EMBEDDING_DIMEN),
+    persist_directory='./chroma_db'
+)
+
 parser = StrOutputParser()
 
 if os.environ.get('INGEST_DOCS', '0') == '1':
