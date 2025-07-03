@@ -5,10 +5,12 @@ import requests
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_react_agent, AgentExecutor
 from langchain.tools import tool, BaseTool
+from langchain.agents import create_react_agent, AgentExecutor
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain import hub
+
+from pydantic import BaseModel, Field
 
 
 load_dotenv()
@@ -22,31 +24,36 @@ llm = ChatOpenAI(model='gpt-4o-mini')
 search_tool = DuckDuckGoSearchRun()
 
 
-@tool
+class OddOrEvenInput(BaseModel):
+    num: str = Field(description="check this number if it's even or odd")
+
+
+@tool("odd_or_even", args_schema=OddOrEvenInput, )
 def odd_or_even(num: str) -> str:
-    """Returns if a number is odd or even."""
+    """Returns if the given input number is 'odd' or 'even'."""
 
-    if num.isnumeric():
-        return "Even" if int(num) % 2 == 0 else "Odd"
-
-    return "Invalid number"
+    return "Invalid number" if not num.isnumeric() else (
+        "Even" if int(num) % 2 == 0 else "Odd")
 
 
-@tool
+class CurrentDateTimeInput(BaseModel):
+    pass
+
+
+@tool("current_date_time", args_schema=CurrentDateTimeInput)
 def current_date_time() -> str:
-    """This tool runs and give you the current date and time"""
-
+    """Returns the current date and time in string"""
     return datetime.datetime.now().isoformat()
 
 
 @tool
-def weather_tool(city: str) -> str:
+def weather_tool(city_name: str) -> str:
     """This function fetches the weather data of the given city"""
 
     url = 'http://api.weatherstack.com/current?' \
-        f'access_key={WEATHER_API_KEY}&query={city}'
+        f'access_key={WEATHER_API_KEY}&query={city_name}'
     resp = requests.get(url)
-    return resp.json()
+    return str(resp.json())
 
 
 tools: list[BaseTool] = [
@@ -59,24 +66,35 @@ tools: list[BaseTool] = [
 agent = create_react_agent(
     llm=llm,
     prompt=prompt,
-    tools=tools,
+    tools=[
+        weather_tool,
+        search_tool,
+        current_date_time,
+        odd_or_even
+    ],
 )
 
 
 agent_executor = AgentExecutor(
+    verbose=True,
     agent=agent,
-    tools=tools,
-    verbose=True
+    tools=[
+        weather_tool,
+        search_tool,
+        current_date_time,
+        odd_or_even
+    ],
 )
 
 
-query = input('Question:')
+# query = input('Question:')
 test_query = "Find the capital of Madhya Pradesh, then find it's current" \
     " weather condition"
-test_2 = "What's the date today, if it's odd day give me the wather of "\
+test_2 = "What's the date today, if it's odd day give me the weather of "\
     "windsor else just give me the date?"
 
 response = agent_executor.invoke(
-    {"input": test_2})
+    {"input": test_2}
+)
 
 print(response['output'])
