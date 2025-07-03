@@ -5,7 +5,7 @@ from requests import get, Response
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.prompts import PromptTemplate
-from langchain.schema.runnable import RunnableParallel, RunnablePassthrough, RunnableLambda
+from langchain.schema.runnable import RunnableParallel, RunnableLambda
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import VectorStore
@@ -13,11 +13,13 @@ from langchain_chroma import Chroma
 
 load_dotenv()
 
+EMBEDDING_MODEL = 'text-embedding-3-small'
+EMBEDDING_DIMEN = 1500
 
-url = 'https://raw.githubusercontent.com/elastic/ecs/refs/tags/v9.0.0/generated/csv/fields.csv'
 
-
-def fetch():
+def fetch_ecs() -> list:
+    url = 'https://raw.githubusercontent.com/elastic/ecs/refs/tags/v9.0.0/' + \
+        'generated/csv/fields.csv'
     resp: Response = get(url)
 
     rows = resp.text.splitlines()
@@ -27,19 +29,17 @@ def fetch():
 
 
 def load_to_vec_store(vec_store: VectorStore) -> list[str]:
-    ecs_fields = fetch()
+    ecs_fields = fetch_ecs()
     print(f'found {len(ecs_fields)} fields')
 
     docs = [Document(str(field)) for field in ecs_fields]
 
     res = vec_store.add_documents(docs)
     print(f'added {len(res)} embeddings to vector_db')
-
-    print(res[0])
     return res
 
 
-def similarity_search(inputs):
+def similarity_search(inputs) -> str:
 
     semantic_search_prompt = PromptTemplate(
         input_variables=['field_name', 'field_desc'],
@@ -62,7 +62,7 @@ def similarity_search(inputs):
 llm = ChatOpenAI(model='gpt-4o-mini')
 prompt = PromptTemplate(
     input_variables=['field_name', 'field_desc', 'similar_fields'],
-    template="""You are an expert field mapper.
+    template="""You are an expert ECS field mapper.
     Map the given field to its corresponding ECS mappings based on field's
     name and description. Only choose one option from Similar Fields.
     If there's no match return "No Match".
@@ -75,10 +75,12 @@ prompt = PromptTemplate(
     User: {field_name}: {field_desc}
     Similar Fields: {similar_fields}
     Answer:""")
-vec_store = Chroma('ecs_collection', OpenAIEmbeddings(), './chroma_db')
+
+vec_store = Chroma('ecs_collection', OpenAIEmbeddings(
+    model=EMBEDDING_MODEL, dimensions=EMBEDDING_DIMEN), './chroma_db_new')
 parser = StrOutputParser()
 
-if os.environ.get('INGEST_DOCS', 0) == '1':
+if os.environ.get('INGEST_DOCS', '0') == '1':
     print('loading ecs fields to vector store')
     res = load_to_vec_store(vec_store)
 
@@ -94,30 +96,68 @@ parallel_chain = RunnableParallel({
 
 
 tests = [
-    ("request_id", "Unique identifier assigned to this specific request or transaction", "event.id"),
-    ("user_id", "Internal ID used to represent the user who triggered this event", "user.id"),
-    ("username", "name or email of the user", "user.name"),
-    ("src_ip", "IP address where the request originated from", "source.ip"),
-    ("dst_ip", "Destination IP address the request was sent to", "destination.ip"),
-    ("user_agent", "Full string representing the client browser or application",
+    ("request_id",
+     "Unique identifier assigned to this specific request or transaction",
+     "event.id"),
+    ("user_id",
+     "Internal ID used to represent the user who triggered this event",
+     "user.id"),
+    ("username",
+     "name or email of the user",
+     "user.name"),
+    ("src_ip",
+     "IP address where the request originated from",
+     "source.ip"),
+    ("dst_ip",
+     "Destination IP address the request was sent to",
+     "destination.ip"),
+    ("user_agent",
+     "Full string representing the client browser or application",
      "user_agent.original"),
-    ("method", "HTTP verb used in the request (e.g., GET, POST)", "http.request.method"),
-    ("status_code", "Numeric status code returned in response to the request",
+    ("method",
+     "HTTP verb used in the request (e.g.,GET,POST)",
+     "http.request.method"),
+    ("status_code",
+     "Numeric status code returned in response to the request",
      "http.response.status_code"),
-    ("timestamp", "ISO timestamp when the event occurred", "@timestamp"),
-    ("path", "URL route or path that was accessed", "url.path"),
+    ("timestamp",
+     "ISO timestamp when the event occurred",
+     "@timestamp"),
+    ("path",
+     "URL route or path that was accessed",
+     "url.path"),
     ("response_time_ms",
-     "Time taken to process the request, in milliseconds", "event.duration"),
-    ("error_msg", "Textual message describing an error encountered", "error.message"),
-    ("client_ip", "IP address of the client making the connection", "client.ip"),
-    ("email", "Email address associated with the user or account", "user.email"),
-    ("event_type", "High-level category describing what kind of event this is", "event.type"),
-    ("geo_location", "ISO code for Country Name", "source.geo.country_iso_code"),
-    ("device", "Type of device or OS used to generate this event", "host.os.name"),
-    ("session_id", "Identifier for a user's session during their interaction", "session.id"),
-    ("referrer", "Page or URL that linked to the current request", "http.request.referrer"),
-    ("latency", "Measured delay or time taken to respond to a request", "event.duration"),
-    ("auth_method", "Authentication mechanism used by the user (e.g., password, token)",
+     "Time taken to process the request,in milliseconds",
+     "event.duration"),
+    ("error_msg",
+     "Textual message describing an error encountered",
+     "error.message"),
+    ("client_ip",
+     "IP address of the client making the connection",
+     "client.ip"),
+    ("email",
+     "Email address associated with the user or account",
+     "user.email"),
+    ("event_type",
+     "High-level category describing what kind of event this is",
+     "event.type"),
+    ("geo_location",
+     "ISO code for Country Name",
+     "source.geo.country_iso_code"),
+    ("device",
+     "OS used on the host device",
+     "host.os.name"),
+    ("session_id",
+     "Identifier for a user's session during their interaction",
+     "session.id"),
+    ("referrer",
+     "Page or URL that linked to the current request",
+     "http.request.referrer"),
+    ("latency",
+     "Measured delay or time taken to respond to a request",
+     "event.duration"),
+    ("auth_method",
+     "Authentication mechanism used by the user (e.g.,password, token)",
      "user.authentication_method")
 ]
 test_pass = test_fail = 0
